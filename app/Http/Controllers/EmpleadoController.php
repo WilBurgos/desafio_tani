@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 
+use App\Models\Empleado;
+
 class EmpleadoController extends Controller
 {
     /**
@@ -13,7 +15,10 @@ class EmpleadoController extends Controller
      */
     public function index()
     {
-        //
+        $empleados = Empleado::with('empresa')->get();
+        return response()->json([
+            'empleados'=>$empleados
+        ],200);
     }
 
     /**
@@ -34,7 +39,18 @@ class EmpleadoController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        /* VALIDAR QUE EXISTA LA EMPRESA */
+        $empleado                = new Empleado;
+        $empleado->primer_nombre = $request->primer_nombre;
+        $empleado->apellido      = $request->apellido;
+        $empleado->company_id    = $request->empresa;
+        $empleado->correo        = $request->correo;
+        $empleado->telefono      = $request->telefono;
+        $empleado->save();
+
+        return response()->json([
+            'message' => 'Empleado creado con éxito'
+        ],200);
     }
 
     /**
@@ -45,7 +61,11 @@ class EmpleadoController extends Controller
      */
     public function show($id)
     {
-        //
+        /* VALIDAR QUE EXISTA EL EMPLEADO */
+        $empleado = Empleado::with('empresa')->find($id);
+        return response()->json([
+            'empleado'=>$empleado
+        ],200);
     }
 
     /**
@@ -68,7 +88,18 @@ class EmpleadoController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
+        /* VALIDAR QUE EXISTA EMPLEADO Y EMPRESA */
+        $empleado = Empleado::find($id);
+        $empleado->primer_nombre = $request->primer_nombre;
+        $empleado->apellido      = $request->apellido;
+        $empleado->company_id    = $request->empresa;
+        $empleado->correo        = $request->correo;
+        $empleado->telefono      = $request->telefono;
+        $empleado->save();
+
+        return response()->json([
+            'message' => 'El empleado se ha actualizado'
+        ],200);
     }
 
     /**
@@ -79,6 +110,13 @@ class EmpleadoController extends Controller
      */
     public function destroy($id)
     {
-        //
+        /* VALIDAR QUE EXISTA EL EMPLEADO */
+        $empleado = Empleado::find($id);
+
+        $empleado->delete();
+
+        return response()->json([
+            'message' => 'El empleado se ha eliminado'
+        ],200);
     }
 }
