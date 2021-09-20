@@ -5,25 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Http\Requests\LoginRequest;
 
 class AuthController extends Controller
 {
-    public function login(Request $request){
-
-        // $credentials = $request->validate([
-        //     'email'     => 'required|string|email',
-        //     'password'  => 'required|string'
-        // ]);
-        // dd($credentials);
-        // return $credentials;
-
-        // if( !Auth::attempt($request->only('email', 'password')) ){
-        //     return response()->json([
-        //         'message' => 'Invalid login details'
-        //     ],401);
-        // }
-
-        // $userdata = array( 'email' => $credentials['email'], 'password' => $credentials['password'] );
+    public function login(LoginRequest $request){
         if( Auth::attempt($request->only('email', 'password')) ){
             $token = auth()->user()->createToken('auth_token')->plainTextToken;
 

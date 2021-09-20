@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\Models\Empleado;
+use App\Models\Empresa;
+use App\Http\Requests\StoreEmpleadoRequest;
+use Illuminate\Support\Facades\DB;
 
 class EmpleadoController extends Controller
 {
@@ -15,7 +18,8 @@ class EmpleadoController extends Controller
      */
     public function index()
     {
-        $empleados = Empleado::with('empresa')->get();
+        $empleados = Empleado::with('empresa')->paginate(10);
+
         return response()->json([
             'empleados'=>$empleados
         ],200);
@@ -37,20 +41,34 @@ class EmpleadoController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(StoreEmpleadoRequest $request)
     {
-        /* VALIDAR QUE EXISTA LA EMPRESA */
-        $empleado                = new Empleado;
-        $empleado->primer_nombre = $request->primer_nombre;
-        $empleado->apellido      = $request->apellido;
-        $empleado->company_id    = $request->empresa;
-        $empleado->correo        = $request->correo;
-        $empleado->telefono      = $request->telefono;
-        $empleado->save();
+        if( !Empresa::find($request->empresa) ){
+            return response()->json([
+                'message' => 'No existe la empresa.'
+            ],422);
+        }
 
-        return response()->json([
-            'message' => 'Empleado creado con éxito'
-        ],200);
+        try {
+            $empleado                = new Empleado;
+            $empleado->primer_nombre = $request->primer_nombre;
+            $empleado->apellido      = $request->apellido;
+            $empleado->company_id    = $request->empresa;
+            $empleado->correo        = $request->correo;
+            $empleado->telefono      = $request->telefono;
+            $empleado->save();
+
+            DB::commit();
+            
+            return response()->json([
+                'message' => 'Empleado creado con éxito'
+            ],200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage()
+            ],422);
+        }
     }
 
     /**
@@ -61,8 +79,13 @@ class EmpleadoController extends Controller
      */
     public function show($id)
     {
-        /* VALIDAR QUE EXISTA EL EMPLEADO */
         $empleado = Empleado::with('empresa')->find($id);
+        if(!$empleado){
+            return response()->json([
+                'message' => 'No existe el empleado solicitado.'
+            ],400);
+        }
+
         return response()->json([
             'empleado'=>$empleado
         ],200);
@@ -86,20 +109,40 @@ class EmpleadoController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(StoreEmpleadoRequest $request, $id)
     {
-        /* VALIDAR QUE EXISTA EMPLEADO Y EMPRESA */
-        $empleado = Empleado::find($id);
-        $empleado->primer_nombre = $request->primer_nombre;
-        $empleado->apellido      = $request->apellido;
-        $empleado->company_id    = $request->empresa;
-        $empleado->correo        = $request->correo;
-        $empleado->telefono      = $request->telefono;
-        $empleado->save();
+        if( !Empresa::find($request->empresa) ){
+            return response()->json([
+                'message' => 'No existe la empresa.'
+            ],422);
+        }
 
-        return response()->json([
-            'message' => 'El empleado se ha actualizado'
-        ],200);
+        $empleado = Empleado::find($id);
+        if(!$empleado){
+            return response()->json([
+                'message' => 'No existe el empleado.'
+            ],400);
+        }
+
+        try {
+            $empleado->primer_nombre = $request->primer_nombre;
+            $empleado->apellido      = $request->apellido;
+            $empleado->company_id    = $request->empresa;
+            $empleado->correo        = $request->correo;
+            $empleado->telefono      = $request->telefono;
+            $empleado->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'El empleado se ha actualizado'
+            ],200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage()
+            ],422);
+        }
     }
 
     /**
@@ -110,8 +153,12 @@ class EmpleadoController extends Controller
      */
     public function destroy($id)
     {
-        /* VALIDAR QUE EXISTA EL EMPLEADO */
         $empleado = Empleado::find($id);
+        if(!$empleado){
+            return response()->json([
+                'message' => 'No existe el empleado.'
+            ],400);
+        }
 
         $empleado->delete();
 

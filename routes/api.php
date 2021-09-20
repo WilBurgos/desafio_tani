@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\AuthController;
-
+use Illuminate\Support\Facades\App;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -21,13 +21,17 @@ use App\Http\Controllers\AuthController;
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 //     return $request->user();
 // });
-
-Route::post('/login',[AuthController::class,'login']);
-
-Route::group(['middleware' => 'auth:sanctum'], function (){
-    Route::get('/user',function(Request $request){
-        return $request->user();
-    });
-    Route::resource('empresa',EmpresaController::class);
-    Route::resource('empleado',EmpleadoController::class);
+Route::group(['prefix' => '{language}'], function () {
+    Route::post('/login',[AuthController::class,'login']);
 });
+
+    Route::post('/login',[AuthController::class,'login']);
+
+    Route::group(['middleware' => 'auth:sanctum'], function (){
+        Route::get('/user',function(Request $request){
+            return $request->user();
+        });
+        Route::resource('empresa',EmpresaController::class);
+        Route::resource('empleado',EmpleadoController::class);
+    });
+// });

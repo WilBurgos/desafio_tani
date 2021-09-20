@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreEmpresaRequest extends FormRequest
+class LoginRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,17 +26,15 @@ class StoreEmpresaRequest extends FormRequest
     public function rules()
     {
         return [
-            'nombre' => 'required|string',
-            'correo' => 'required|email',
-            'sitio_web' => 'required|string',
-            'logotipo' => 'required|image|dimensions:max_width=100,max_height=100'
+            'email' => 'required|email',
+            'password' => 'required|string'
         ];
     }
 
     // public function messages()
     // {
     //     return [
-    //         'correo.email' => 'Ingrese un correo válido',
+    //         'email.email' => 'Ingrese un correo válido',
     //         'required' => 'El campo es requerido',
     //     ];
     // }

@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Empresa;
 use Storage;
 use App\Http\Requests\StoreEmpresaRequest;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 class EmpresaController extends Controller
 {
@@ -16,7 +18,8 @@ class EmpresaController extends Controller
      */
     public function index()
     {
-        $empresas = Empresa::with('empleados')->get();
+        $empresas = Empresa::with('empleados')->paginate(10);
+        
         return response()->json([
             'empresas'=>$empresas
         ],200);
@@ -40,47 +43,53 @@ class EmpresaController extends Controller
      */
     public function store(StoreEmpresaRequest $request)
     {
-        // $validator = \Validator::make($request->all(), [
-        //     'nombre' => 'required|string',
-        //     'correo' => 'required|email',
-        //     'sitio_web' => 'required|string',
-        //     'logotipo' => 'required|image|dimensions:max_width=100,max_height=100'
-        // ]);
+        try {
+            $fileName0 = time().'-'.$request->logotipo->getClientOriginalName();
+            $fileName = str_replace(" ","-", $fileName0);
+            $nameEmpresa = str_replace(" ","", $request->nombre);
+            $explode = explode( '/', $nameEmpresa );
+            $explode2 = explode( '\\', $nameEmpresa );
 
-        // if ($validator->fails()) {
-        //     return response()->json([
-        //         'message' => 'Los datos proporcionados no son válidos.',
-        //         'errors' => $validator->errors()
-        //     ], 404);
-        // }
+            $empresa                        = new Empresa;
+            $empresa->nombre                = $request->nombre;
+            $empresa->correo_electronico    = $request->correo;
+            $empresa->logotipo              = $fileName;
+            $empresa->sitio_web             = $request->sitio_web;
+            $empresa->save();
 
-        $fileName = time().'-'.$request->logotipo->getClientOriginalName();
-        $nameEmpresa = str_replace(" ","", $request->nombre);
-        $explode = explode( '/', $nameEmpresa );
-        $explode2 = explode( '\\', $nameEmpresa );
+            if( count($explode) > 1 ){
+                $imgComplete = str_replace("/","-", $nameEmpresa);
+            }else if( count($explode2) > 1 ){
+                $imgComplete = str_replace("\\","-", $nameEmpresa);
+            }
 
-        if( count($explode) > 1 ){
-            $imgComplete = str_replace("/","-", $nameEmpresa);
-        }else if( count($explode2) > 1 ){
-            $imgComplete = str_replace("\\","-", $nameEmpresa);
+            if( isset($imgComplete) ){
+                Storage::disk('public')->put( $imgComplete.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
+            }else{
+                Storage::disk('public')->put( $nameEmpresa.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
+            }
+
+            if($request["destinatario"]){
+                $array = $empresa->toArray();
+                $destino = $request["destinatario"];
+                Mail::send('emails.notificacion', $array, function ($message) use ($destino){
+                    $message->from('pruebas@pruebas.com', 'Tani.com');
+                    $message->to($destino)->subject('Notificación');
+                });
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Empresa creada con éxito'
+            ],200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage()
+            ],422);
         }
-
-        if( isset($imgComplete) ){
-            Storage::disk('public')->put( $imgComplete.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
-        }else{
-            Storage::disk('public')->put( $nameEmpresa.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
-        }
-
-        $empresa                        = new Empresa;
-        $empresa->nombre                = $request->nombre;
-        $empresa->correo_electronico    = $request->correo;
-        $empresa->logotipo              = $fileName;
-        $empresa->sitio_web             = $request->sitio_web;
-        $empresa->save();
-
-        return response()->json([
-            'message' => 'Empresa creada con éxito'
-        ],200);
+        
 
     }
 
@@ -93,8 +102,31 @@ class EmpresaController extends Controller
     public function show($id)
     {
         $empresa = Empresa::with('empleados')->find($id);
+        if(!$empresa){
+            return response()->json([
+                'message' => 'No hay registros.'
+            ],400);
+        }
+        $nameEmpresa = str_replace(" ","", $empresa->nombre);
+        $explode = explode( '/', $nameEmpresa );
+        $explode2 = explode( '\\', $nameEmpresa );
+
+        if( count($explode) > 1 ){
+            $folioComplete = str_replace("/","-", $nameEmpresa);
+            $pathToFile = public_path('public').'/'.$folioComplete.'/';
+        }else if( count($explode2) > 1 ){
+            $folioComplete = str_replace("\\","-", $nameEmpresa);
+            $pathToFile = public_path('public').'/'.$folioComplete.'/';
+        }else{
+            $folioComplete = $nameEmpresa;
+            $pathToFile = public_path('public').'/'.$nameEmpresa.'/';
+        }
+
+        DB::commit();
+
         return response()->json([
-            'empresa'=>$empresa
+            'empresa'=>$empresa,
+            'img' => url('').'/storage/'.$folioComplete.'/'.$empresa->logotipo
         ],200);
     }
 
@@ -116,53 +148,62 @@ class EmpresaController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(StoreEmpresaRequest $request, $id)
     {
-        // $old = Empresa::find($id);
-        // if($old){
-        //     $exName = str_replace(" ","", $old->nombre);
-        //     $explode = explode( '/', $exName );
-        //     $explode2 = explode( '\\', $exName );
-        //     if( count($explode) > 1 ){
-        //         $nameComplete = str_replace("/","-", $exName);
-        //     }else if( count($explode2) > 1 ){
-        //         $nameComplete = str_replace("\\","-", $exName);
-        //     }
-        //     if( isset($nameComplete) ){
-        //         $folder = $nameComplete;
-        //     }else{
-        //         $folder = $exName;
-        //     }
-        //     Storage::disk('public')->deleteDirectory($folder);
-        // }
-        dd($request->all());
-        $fileName = time().'-'.$request->logotipo->getClientOriginalName();
-        $nameEmpresa = str_replace(" ","", $request->nombre);
-        $explode = explode( '/', $nameEmpresa );
-        $explode2 = explode( '\\', $nameEmpresa );
+        try {
+            // $old = Empresa::find($id);
+            // if($old){
+            //     $exName = str_replace(" ","", $old->nombre);
+            //     $explode = explode( '/', $exName );
+            //     $explode2 = explode( '\\', $exName );
+            //     if( count($explode) > 1 ){
+            //         $nameComplete = str_replace("/","-", $exName);
+            //     }else if( count($explode2) > 1 ){
+            //         $nameComplete = str_replace("\\","-", $exName);
+            //     }
+            //     if( isset($nameComplete) ){
+            //         $folder = $nameComplete;
+            //     }else{
+            //         $folder = $exName;
+            //     }
+            //     Storage::disk('public')->deleteDirectory($folder);
+            // }
 
-        if( count($explode) > 1 ){
-            $imgComplete = str_replace("/","-", $nameEmpresa);
-        }else if( count($explode2) > 1 ){
-            $imgComplete = str_replace("\\","-", $nameEmpresa);
+            $fileName0 = time().'-'.$request->logotipo->getClientOriginalName();
+            $fileName = str_replace(" ","-", $fileName0);
+            $nameEmpresa = str_replace(" ","", $request->nombre);
+            $explode = explode( '/', $nameEmpresa );
+            $explode2 = explode( '\\', $nameEmpresa );
+
+            if( count($explode) > 1 ){
+                $imgComplete = str_replace("/","-", $nameEmpresa);
+            }else if( count($explode2) > 1 ){
+                $imgComplete = str_replace("\\","-", $nameEmpresa);
+            }
+
+            if( isset($imgComplete) ){
+                Storage::disk('public')->put( $imgComplete.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
+            }else{
+                Storage::disk('public')->put( $nameEmpresa.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
+            }
+            /* GUARDADO DE IMAGEN */
+            $empresa = Empresa::find($id);
+            $empresa->nombre                = $request->nombre;
+            $empresa->correo_electronico    = $request->correo;
+            $empresa->logotipo              = $fileName;
+            $empresa->sitio_web             = $request->sitio_web;
+            $empresa->save();
+
+            return response()->json([
+                'message' => 'La empresa se ha actualizado'
+            ],200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage()
+            ],422);
         }
-
-        if( isset($imgComplete) ){
-            Storage::disk('public')->put( $imgComplete.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
-        }else{
-            Storage::disk('public')->put( $nameEmpresa.'/'.$fileName, file_get_contents($request->logotipo->getRealPath()) );
-        }
-        /* GUARDADO DE IMAGEN */
-        $empresa = Empresa::find($id);
-        $empresa->nombre                = $request->nombre;
-        $empresa->correo_electronico    = $request->correo;
-        $empresa->logotipo              = $fileName;
-        $empresa->sitio_web             = $request->sitio_web;
-        $empresa->save();
-
-        return response()->json([
-            'message' => 'La empresa se ha actualizado'
-        ],200);
+        
     }
 
     /**
@@ -174,6 +215,11 @@ class EmpresaController extends Controller
     public function destroy($id)
     {
         $empresa = Empresa::find($id);
+        if(!$empresa){
+            return response()->json([
+                'message' => 'No existen registros.'
+            ],400);
+        }
 
         $empresa->delete();
 
